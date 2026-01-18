@@ -3,19 +3,19 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC3H9aTihxll8OeggHIMaIM2QvIaNfXiMA",
-  authDomain: "fullstack-tic-project.firebaseapp.com",
-  projectId: "fullstack-tic-project",
-  storageBucket: "fullstack-tic-project.firebasestorage.app",
-  messagingSenderId: "315244394746",
-  appId: "1:315244394746:web:e3a7c301106d00abf6f143"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 // Initialize services
-const db = getFirestore(app);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 export { db, auth };
