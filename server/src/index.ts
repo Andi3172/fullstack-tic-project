@@ -2,11 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
+import { db } from './config/firebase';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+if (db) {
+  console.log('Connected to Firestore');
+}
 
 app.use(helmet());
 app.use(cors());
