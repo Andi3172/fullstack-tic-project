@@ -1,47 +1,36 @@
 <script setup lang="ts">
+import { useAuthStore } from '@/stores/auth';
+import { useRouter } from 'vue-router';
+
+const authStore = useAuthStore();
+const router = useRouter();
+
+const handleLogout = async () => {
+  await authStore.logout();
+  router.push('/login');
+};
 </script>
 
 <template>
-  <header>
-    <nav>
-      <router-link to="/">Home</router-link>
-    </nav>
-  </header>
+  <v-app>
+    <v-app-bar color="primary" elevation="2">
+      <v-app-bar-title>TechStore</v-app-bar-title>
+      
+      <v-spacer></v-spacer>
+      
+      <div v-if="authStore.user">
+        <span class="mr-4 text-body-2 hidden-sm-and-down">Welcome, {{ authStore.user.email }}</span>
+        <v-btn icon="mdi-logout" variant="text" @click="handleLogout" title="Logout"></v-btn>
+      </div>
+      
+      <div v-else>
+        <v-btn to="/login" variant="text">Login</v-btn>
+        <v-btn to="/register" variant="text">Register</v-btn>
+      </div>
+    </v-app-bar>
 
-  <main>
-    <router-view />
-  </main>
+    <v-main>
+      <router-view />
+    </v-main>
+  </v-app>
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-  margin-bottom: 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-</style>
