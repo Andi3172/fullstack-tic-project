@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { db } from './config/firebase';
 import userRoutes from './routes/userRoutes';
 import productRoutes from './routes/productRoutes';
+import orderRoutes from './routes/orderRoutes';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use(express.json());
 
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
 
 app.get('/', (req, res) => {
   res.send('Fullstack Tic-Project Server is running');

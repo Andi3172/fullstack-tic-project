@@ -1,6 +1,7 @@
 import Joi from 'joi';
 
 export interface Product {
+  id?: string;
   price: number | null;
   category: string;
   name: string;

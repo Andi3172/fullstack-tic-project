@@ -11,8 +11,10 @@ admin.initializeApp({
 
 const db = admin.firestore();
 const auth = admin.auth();
+const storage = admin.storage();
+const bucket = storage.bucket('YOUR_PROJECT_ID.appspot.com'); // Replace with your actual bucket name
 
-export { db, auth };
+export { db, auth, storage, bucket };
 
 
 ////Why is COMMIT NOT WORKING////

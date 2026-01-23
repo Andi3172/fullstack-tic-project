@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useCartStore } from '@/stores/cart';
 import { useRouter } from 'vue-router';
 import CartDrawer from '@/components/CartDrawer.vue';
+import { onMounted } from 'vue';
 
 const authStore = useAuthStore();
 const cartStore = useCartStore();
@@ -12,10 +13,18 @@ const handleLogout = async () => {
   await authStore.logout();
   router.push('/login');
 };
+
+onMounted(() => {
+  authStore.initAuth();
+});
 </script>
 
 <template>
-  <v-app>
+  <div v-if="authStore.loading" class="d-flex justify-center align-center" style="height: 100vh;">
+      <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+  </div>
+
+  <v-app v-else>
     <v-app-bar color="primary" elevation="2">
       <v-app-bar-title>TechStore</v-app-bar-title>
       
@@ -33,6 +42,20 @@ const handleLogout = async () => {
       </v-btn>
       
       <div v-if="authStore.user">
+        <v-btn to="/shop" variant="text" class="mr-1">Shop</v-btn>
+        <v-btn to="/profile" variant="text" class="mr-1">My Orders</v-btn>
+        
+        <v-btn 
+            v-if="authStore.isAdmin" 
+            to="/admin" 
+            variant="flat" 
+            color="error" 
+            size="small" 
+            class="mr-4"
+        >
+            Admin Panel
+        </v-btn>
+
         <span class="mr-4 text-body-2 hidden-sm-and-down">Welcome, {{ authStore.user.email }}</span>
         <v-btn icon="mdi-logout" variant="text" @click="handleLogout" title="Logout"></v-btn>
       </div>

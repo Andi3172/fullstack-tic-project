@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 
-interface Product {
+export interface Product {
+  id: string;
   name: string;
   category: string;
   price: number | null;
@@ -17,9 +18,10 @@ interface Product {
 interface ProductState {
   products: Product[];
   pagination: {
-    currentPage: number;
-    totalPages: number;
+    lastVisible: string | null;
+    hasMore: boolean;
     totalItems: number;
+    loadingNext: boolean;
   };
   loading: boolean;
   error: string | null;
@@ -44,25 +46,37 @@ export const useProductStore = defineStore('products', {
   state: (): ProductState => ({
     products: [],
     pagination: {
-      currentPage: 1,
-      totalPages: 1,
+      lastVisible: null,
+      hasMore: true,
       totalItems: 0,
+      loadingNext: false
     },
     loading: false,
     error: null,
   }),
   actions: {
-    async fetchProducts(params: FetchParams = {}) {
-      this.loading = true;
+    async fetchProducts(params: FetchParams = {}, isLoadMore = false) {
+      if (isLoadMore) {
+          this.pagination.loadingNext = true;
+      } else {
+          this.loading = true;
+          this.pagination.lastVisible = null; // Reset
+          this.pagination.hasMore = true;
+          this.products = []; // Clear list for smooth transition or skeleton
+      }
+      
       this.error = null;
       try {
-        // Construct query params object
         const queryParams: any = {
            limit: params.limit || 12,
-           page: params.page || 1,
            sortBy: params.sortBy || 'price',
            order: params.order || 'asc'
         };
+        
+        // If loading more, pass the cursor
+        if (isLoadMore && this.pagination.lastVisible) {
+            queryParams.lastVisible = this.pagination.lastVisible;
+        }
 
         if (params.category && params.category !== 'All') {
           queryParams.category = params.category;
@@ -71,22 +85,20 @@ export const useProductStore = defineStore('products', {
         if (params.minPrice !== undefined) queryParams.minPrice = params.minPrice;
         if (params.maxPrice !== undefined) queryParams.maxPrice = params.maxPrice;
 
-        // Clean Spec Arrays and join
-        if (params.cores && params.cores.length > 0) {
-            queryParams.cores = params.cores.join(',');
-        }
-        if (params.vram && params.vram.length > 0) {
-            queryParams.vram = params.vram.join(',');
-        }
-        if (params.ramSize && params.ramSize.length > 0) {
-            queryParams.ramSize = params.ramSize.join(',');
-        }
+        if (params.cores && params.cores.length > 0) queryParams.cores = params.cores.join(',');
+        if (params.vram && params.vram.length > 0) queryParams.vram = params.vram.join(',');
+        if (params.ramSize && params.ramSize.length > 0) queryParams.ramSize = params.ramSize.join(',');
         
         const response = await axios.get('http://localhost:3000/api/products', { params: queryParams });
         
-        this.products = response.data.products;
-        this.pagination.currentPage = response.data.page;
-        this.pagination.totalPages = response.data.totalPages;
+        if (isLoadMore) {
+            this.products.push(...response.data.products);
+        } else {
+            this.products = response.data.products;
+        }
+        
+        this.pagination.lastVisible = response.data.lastVisible;
+        this.pagination.hasMore = response.data.hasMore;
         this.pagination.totalItems = response.data.total;
         
       } catch (err: any) {
@@ -94,6 +106,7 @@ export const useProductStore = defineStore('products', {
         this.error = 'Failed to load products';
       } finally {
         this.loading = false;
+        this.pagination.loadingNext = false;
       }
     },
     

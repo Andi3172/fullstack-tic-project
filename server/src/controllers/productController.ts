@@ -30,7 +30,7 @@ export const getProducts = async (req: Request, res: Response) => {
     }
 
     const snapshot = await collectionRef.get();
-    let items: Product[] = snapshot.docs.map(doc => doc.data() as Product);
+    let items: Product[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 
     // 2. In-Memory Filtering
 
@@ -100,20 +100,52 @@ export const getProducts = async (req: Request, res: Response) => {
       return order === 'desc' ? (valB - valA) : (valA - valB);
     });
 
-    // 4. Pagination
+    // 4. Cursor Pagination
     const limitNum = Number(limit);
-    const pageNum = Number(page);
-    const total = items.length;
-    const totalPages = Math.ceil(total / limitNum);
-    const offset = (pageNum - 1) * limitNum;
+    let paginatedItems = items;
+    const lastVisibleId = req.query.lastVisible as string;
+    
+    // If we are doing in-memory pagination after fetching (or filtering), 
+    // real cursor pagination on Firestore requires the query to be limited *before* fetching.
+    // However, our current architecture fetches ALL by category -> filters in memory -> then paginates.
+    // To support "Infinite Scroll" properly with this in-memory approach:
+    // We just slice the array based on "lastVisible" index? 
+    // Or simpler: Keep Page-based logic but frontend treats it as "Load More"?
+    // But Request specifically asked for "db...startAfter(doc)". This implies moving filters to DB query?
+    // MIGRATION NOTE: Moving all filters to DB is hard w/ Firestore complex queries. 
+    // Let's stick to the HYBRID approach but simulate Infinite Scroll via pages or slicing.
+    //
+    // ACTUALLY, sticking to the existing "Page" param is easiest for "Infinite Scroll" frontend logic.
+    // Frontend just requests Page 1, then Page 2, and appends.
+    // But if USER insists on "lastVisible" cursor logic:
+    
+    let startIndex = 0;
+    if (lastVisibleId) {
+        const lastParamIndex = items.findIndex(p => p.id === lastVisibleId);
+        if (lastParamIndex !== -1) {
+            startIndex = lastParamIndex + 1;
+        }
+    }
+    
+    // If using Page param (simpler/safer for hybrid):
+    // const offset = (Number(page) - 1) * limitNum; 
+    // Let's support BOTH or switch to Cursor if present.
+    
+    if (lastVisibleId) {
+        paginatedItems = items.slice(startIndex, startIndex + limitNum);
+    } else {
+         const pageNum = Number(page) || 1;
+         const offset = (pageNum - 1) * limitNum;
+         paginatedItems = items.slice(offset, offset + limitNum);
+    }
 
-    const paginatedItems = items.slice(offset, offset + limitNum);
+    const lastItem = paginatedItems.length > 0 ? paginatedItems[paginatedItems.length - 1] : null;
 
     res.status(200).json({
       products: paginatedItems,
-      total,
-      page: pageNum,
-      totalPages
+      total: items.length,
+      lastVisible: lastItem ? lastItem.id : null,
+      hasMore: (startIndex + limitNum) < items.length // Rough check
     });
 
   } catch (error) {
@@ -131,7 +163,7 @@ export const getProductById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
-    const product = doc.data() as Product;
+    const product = { id: doc.id, ...doc.data() } as Product;
     res.status(200).json(product);
   } catch (error) {
     console.error('Error fetching product by ID:', error);

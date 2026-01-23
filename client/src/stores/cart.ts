@@ -1,9 +1,13 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
+import axios from 'axios';
+import { auth } from '@/firebase'; 
+import router from '@/router';
 
 // Using a local interface that matches the expected product structure
 // We identify products by 'name' since our current seed/model doesn't enforce a client-side ID
 export interface CartProduct {
+  id: string;
   name: string;
   category: string;
   price: number | null;
@@ -76,6 +80,10 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
+
+
+// ... state ...
+
   function clearCart() {
     items.value = [];
   }
@@ -86,6 +94,54 @@ export const useCartStore = defineStore('cart', () => {
 
   function toggleCart() {
     isOpen.value = !isOpen.value;
+  }
+
+ // Import the router instance directly
+
+// ...
+
+  async function checkout() {
+    // Check if user is logged in via Firebase Auth direct check or useAuthStore
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please login to checkout.");
+      return;
+    }
+
+    try {
+      const token = await user.getIdToken();
+      
+      // Map Items to API structure
+      const orderItems = items.value.map(i => ({
+        productId: i.product.id,
+        name: i.product.name,
+        price: i.product.price || 0,
+        quantity: i.quantity,
+        image: i.product.image
+      }));
+
+      const response = await axios.post('http://localhost:3000/api/orders', 
+        { items: orderItems },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (response.data.success) {
+        clearCart();
+        isOpen.value = false;
+        
+        // Redirect to Success Page
+        router.push({ 
+            name: 'order-success', 
+            params: { id: response.data.orderId } 
+        });
+        
+        return response.data.orderId;
+      }
+    } catch (error) {
+      console.error("Checkout failed", error);
+      alert("Checkout failed. See console for details.");
+      throw error;
+    }
   }
 
   return {
@@ -100,6 +156,7 @@ export const useCartStore = defineStore('cart', () => {
     updateQuantity,
     clearCart,
     openCart,
-    toggleCart
+    toggleCart,
+    checkout
   };
 });

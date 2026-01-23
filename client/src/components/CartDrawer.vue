@@ -121,9 +121,13 @@ import { useCartStore } from '@/stores/cart';
 
 const cartStore = useCartStore();
 
-const checkout = () => {
-    console.log("Proceeding to checkout...");
-    // Future: Connect to Checkout Logic
+const checkout = async () => {
+    try {
+      await cartStore.checkout();
+      // Navigation is handled in the store
+    } catch (e) {
+      // handled in store
+    }
 };
 </script>
 
