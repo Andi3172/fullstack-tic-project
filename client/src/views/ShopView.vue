@@ -187,10 +187,17 @@
                 <v-divider></v-divider>
                 
                 <v-card-actions class="pa-3">
-                  <v-btn variant="outlined" size="small" color="primary" class="flex-grow-1 border-opacity-25">
+                  <v-btn text="Details" variant="outlined" size="small" color="primary" class="flex-grow-1 border-opacity-25">
                     Details
                   </v-btn>
-                  <v-btn icon="mdi-cart-plus" variant="tonal" color="secondary" size="small" class="ml-2"></v-btn>
+                  <v-btn 
+                    icon="mdi-cart-plus" 
+                    variant="tonal" 
+                    color="secondary" 
+                    size="small" 
+                    class="ml-2"
+                    @click="addToCart(product)"
+                  ></v-btn>
                 </v-card-actions>
               </v-card>
             </v-col>
@@ -225,10 +232,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
 import { useProductStore } from '@/stores/products';
+import { useCartStore } from '@/stores/cart';
 import { useRoute, useRouter } from 'vue-router';
 import { useDisplay } from 'vuetify';
 
 const productStore = useProductStore();
+const cartStore = useCartStore();
 const route = useRoute();
 const router = useRouter();
 const { mobile } = useDisplay();
@@ -346,6 +355,11 @@ const clearFilters = () => {
   filterRamSize.value = [];
   priceRange.value = [0, 3000];
   // This will trigger watchers? No, ref changes trigger watchers below
+};
+
+const addToCart = (product: any) => {
+  cartStore.addToCart(product);
+  cartStore.openCart();
 };
 
 // Watchers for Sidebar changes to auto-refresh

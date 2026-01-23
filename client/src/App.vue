@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth';
+import { useCartStore } from '@/stores/cart';
 import { useRouter } from 'vue-router';
+import CartDrawer from '@/components/CartDrawer.vue';
 
 const authStore = useAuthStore();
+const cartStore = useCartStore();
 const router = useRouter();
 
 const handleLogout = async () => {
@@ -17,6 +20,17 @@ const handleLogout = async () => {
       <v-app-bar-title>TechStore</v-app-bar-title>
       
       <v-spacer></v-spacer>
+
+      <!-- Cart Button -->
+      <v-btn icon class="mr-2" @click="cartStore.toggleCart()">
+        <v-badge
+          :content="cartStore.totalItems"
+          :model-value="cartStore.totalItems > 0"
+          color="error"
+        >
+          <v-icon>mdi-cart</v-icon>
+        </v-badge>
+      </v-btn>
       
       <div v-if="authStore.user">
         <span class="mr-4 text-body-2 hidden-sm-and-down">Welcome, {{ authStore.user.email }}</span>
@@ -28,6 +42,8 @@ const handleLogout = async () => {
         <v-btn to="/register" variant="text">Register</v-btn>
       </div>
     </v-app-bar>
+
+    <CartDrawer />
 
     <v-main>
       <router-view />
