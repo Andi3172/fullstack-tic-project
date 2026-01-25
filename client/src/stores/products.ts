@@ -17,26 +17,21 @@ export interface Product {
 
 interface ProductState {
   products: Product[];
-  pagination: {
-    lastVisible: string | null;
-    hasMore: boolean;
-    totalItems: number;
-    loadingNext: boolean;
-  };
   loading: boolean;
+  hasMore: boolean;
+  lastVisibleId: string | null;
+  safetyBlock: boolean;
   error: string | null;
+  totalItems: number;
 }
 
 interface FetchParams {
   category?: string;
-  page?: number;
   limit?: number;
   sortBy?: string;
   order?: 'asc' | 'desc';
   minPrice?: number;
   maxPrice?: number;
-  
-  // Spec Filters
   cores?: (string | number)[];
   vram?: (string | number)[];
   ramSize?: (string | number)[];
@@ -45,37 +40,43 @@ interface FetchParams {
 export const useProductStore = defineStore('products', {
   state: (): ProductState => ({
     products: [],
-    pagination: {
-      lastVisible: null,
-      hasMore: true,
-      totalItems: 0,
-      loadingNext: false
-    },
     loading: false,
+    hasMore: true,
+    lastVisibleId: null,
+    safetyBlock: false,
     error: null,
+    totalItems: 0,
   }),
   actions: {
     async fetchProducts(params: FetchParams = {}, isLoadMore = false) {
-      if (isLoadMore) {
-          this.pagination.loadingNext = true;
-      } else {
-          this.loading = true;
-          this.pagination.lastVisible = null; // Reset
-          this.pagination.hasMore = true;
-          this.products = []; // Clear list for smooth transition or skeleton
-      }
-      
+      // 1. Guard Clause: Prevent parallel or blocked requests
+      if (this.loading || this.safetyBlock) return;
+
+      // 2. Safety Debounce: Block subsequent calls for 1s
+      this.safetyBlock = true;
+      setTimeout(() => {
+        this.safetyBlock = false;
+      }, 1000);
+
+      this.loading = true;
       this.error = null;
+
+      if (!isLoadMore) {
+        this.products = [];
+        this.lastVisibleId = null;
+        this.hasMore = true;
+        this.totalItems = 0;
+      }
+
       try {
         const queryParams: any = {
            limit: params.limit || 12,
            sortBy: params.sortBy || 'price',
            order: params.order || 'asc'
         };
-        
-        // If loading more, pass the cursor
-        if (isLoadMore && this.pagination.lastVisible) {
-            queryParams.lastVisible = this.pagination.lastVisible;
+
+        if (isLoadMore && this.lastVisibleId) {
+            queryParams.lastVisibleId = this.lastVisibleId;
         }
 
         if (params.category && params.category !== 'All') {
@@ -88,28 +89,28 @@ export const useProductStore = defineStore('products', {
         if (params.cores && params.cores.length > 0) queryParams.cores = params.cores.join(',');
         if (params.vram && params.vram.length > 0) queryParams.vram = params.vram.join(',');
         if (params.ramSize && params.ramSize.length > 0) queryParams.ramSize = params.ramSize.join(',');
-        
+
         const response = await axios.get('http://localhost:3000/api/products', { params: queryParams });
-        
+
         if (isLoadMore) {
             this.products.push(...response.data.products);
         } else {
             this.products = response.data.products;
         }
-        
-        this.pagination.lastVisible = response.data.lastVisible;
-        this.pagination.hasMore = response.data.hasMore;
-        this.pagination.totalItems = response.data.total;
-        
+
+        this.lastVisibleId = response.data.lastVisibleId;
+        this.hasMore = response.data.hasMore;
+        if (response.data.total) this.totalItems = response.data.total;
+
       } catch (err: any) {
         console.error('Error fetching products:', err);
         this.error = 'Failed to load products';
+        this.hasMore = false; // Stop scrolling on error
       } finally {
         this.loading = false;
-        this.pagination.loadingNext = false;
       }
     },
-    
+
     async fetchProductById(id: string) {
       try {
         const response = await axios.get(`http://localhost:3000/api/products/${id}`);
