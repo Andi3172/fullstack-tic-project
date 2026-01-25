@@ -17,22 +17,17 @@ export const getProducts = async (req: Request, res: Response) => {
       ramSize  // "16,32"
     } = req.query;
     
-    // 1. Base Query: Always filter by category to limit dataset size (~500 max per cat)
-    let collectionRef: FirebaseFirestore.Query = db.collection('products');
-    
-    // Default to 'video-card' or 'cpu' if not provided? Or just fetch all?
-    // User context implies category is usually selected. 
-    // If 'All' or undefined, we might fetch everything? 
-    // To be safe and performant, let's assume category is passed or we default to a check.
-    // If 'All', we skip the where clause (dangerous for large datasets, but 2500 is manageable in memory for node)
-    if (category && category !== 'All') {
-      collectionRef = collectionRef.where('category', '==', category);
-    }
-
-    const snapshot = await collectionRef.get();
+    // 1. Fetch ALL products (Safe for < 1000 items)
+    // We filter in memory to avoid complex Firestore composite index issues
+    const snapshot = await db.collection('products').get();
     let items: Product[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
 
     // 2. In-Memory Filtering
+
+    // Category Filter
+    if (category && category !== 'All') {
+      items = items.filter(p => p.category === category);
+    }
 
     // Price Filter
     if (minPrice || maxPrice) {
@@ -84,68 +79,32 @@ export const getProducts = async (req: Request, res: Response) => {
       let valA = a[String(sortBy)];
       let valB = b[String(sortBy)];
 
-      // Handle null prices (put them at end usually, or treat as 0?)
-      // If we want valid prices first:
       if (sortBy === 'price') {
-         if (valA === null) valA = Infinity; // push to bottom on asc
+         if (valA === null) valA = Infinity; 
          if (valB === null) valB = Infinity;
       }
       
-      // String comparison for names
       if (typeof valA === 'string' && typeof valB === 'string') {
         return order === 'desc' ? valB.localeCompare(valA) : valA.localeCompare(valB);
       }
 
-      // Numeric comparison
       return order === 'desc' ? (valB - valA) : (valA - valB);
     });
 
-    // 4. Cursor Pagination
+    // 4. Offset Pagination
     const limitNum = Number(limit);
-    let paginatedItems = items;
-    const lastVisibleId = req.query.lastVisible as string;
-    
-    // If we are doing in-memory pagination after fetching (or filtering), 
-    // real cursor pagination on Firestore requires the query to be limited *before* fetching.
-    // However, our current architecture fetches ALL by category -> filters in memory -> then paginates.
-    // To support "Infinite Scroll" properly with this in-memory approach:
-    // We just slice the array based on "lastVisible" index? 
-    // Or simpler: Keep Page-based logic but frontend treats it as "Load More"?
-    // But Request specifically asked for "db...startAfter(doc)". This implies moving filters to DB query?
-    // MIGRATION NOTE: Moving all filters to DB is hard w/ Firestore complex queries. 
-    // Let's stick to the HYBRID approach but simulate Infinite Scroll via pages or slicing.
-    //
-    // ACTUALLY, sticking to the existing "Page" param is easiest for "Infinite Scroll" frontend logic.
-    // Frontend just requests Page 1, then Page 2, and appends.
-    // But if USER insists on "lastVisible" cursor logic:
-    
-    let startIndex = 0;
-    if (lastVisibleId) {
-        const lastParamIndex = items.findIndex(p => p.id === lastVisibleId);
-        if (lastParamIndex !== -1) {
-            startIndex = lastParamIndex + 1;
-        }
-    }
-    
-    // If using Page param (simpler/safer for hybrid):
-    // const offset = (Number(page) - 1) * limitNum; 
-    // Let's support BOTH or switch to Cursor if present.
-    
-    if (lastVisibleId) {
-        paginatedItems = items.slice(startIndex, startIndex + limitNum);
-    } else {
-         const pageNum = Number(page) || 1;
-         const offset = (pageNum - 1) * limitNum;
-         paginatedItems = items.slice(offset, offset + limitNum);
-    }
+    const pageNum = Number(page);
+    const totalItems = items.length;
+    const totalPages = Math.ceil(totalItems / limitNum);
+    const offset = (pageNum - 1) * limitNum;
 
-    const lastItem = paginatedItems.length > 0 ? paginatedItems[paginatedItems.length - 1] : null;
+    const paginatedItems = items.slice(offset, offset + limitNum);
 
     res.status(200).json({
       products: paginatedItems,
-      total: items.length,
-      lastVisible: lastItem ? lastItem.id : null,
-      hasMore: (startIndex + limitNum) < items.length // Rough check
+      totalItems,
+      totalPages,
+      currentPage: pageNum
     });
 
   } catch (error) {

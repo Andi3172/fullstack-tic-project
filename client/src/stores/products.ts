@@ -18,10 +18,9 @@ export interface Product {
 interface ProductState {
   products: Product[];
   pagination: {
-    lastVisible: string | null;
-    hasMore: boolean;
+    currentPage: number;
+    totalPages: number;
     totalItems: number;
-    loadingNext: boolean;
   };
   loading: boolean;
   error: string | null;
@@ -46,37 +45,24 @@ export const useProductStore = defineStore('products', {
   state: (): ProductState => ({
     products: [],
     pagination: {
-      lastVisible: null,
-      hasMore: true,
+      currentPage: 1,
+      totalPages: 1,
       totalItems: 0,
-      loadingNext: false
     },
     loading: false,
     error: null,
   }),
   actions: {
-    async fetchProducts(params: FetchParams = {}, isLoadMore = false) {
-      if (isLoadMore) {
-          this.pagination.loadingNext = true;
-      } else {
-          this.loading = true;
-          this.pagination.lastVisible = null; // Reset
-          this.pagination.hasMore = true;
-          this.products = []; // Clear list for smooth transition or skeleton
-      }
-      
+    async fetchProducts(params: FetchParams = {}) {
+      this.loading = true;
       this.error = null;
       try {
         const queryParams: any = {
            limit: params.limit || 12,
+           page: params.page || 1,
            sortBy: params.sortBy || 'price',
            order: params.order || 'asc'
         };
-        
-        // If loading more, pass the cursor
-        if (isLoadMore && this.pagination.lastVisible) {
-            queryParams.lastVisible = this.pagination.lastVisible;
-        }
 
         if (params.category && params.category !== 'All') {
           queryParams.category = params.category;
@@ -91,22 +77,16 @@ export const useProductStore = defineStore('products', {
         
         const response = await axios.get('http://localhost:3000/api/products', { params: queryParams });
         
-        if (isLoadMore) {
-            this.products.push(...response.data.products);
-        } else {
-            this.products = response.data.products;
-        }
-        
-        this.pagination.lastVisible = response.data.lastVisible;
-        this.pagination.hasMore = response.data.hasMore;
-        this.pagination.totalItems = response.data.total;
+        this.products = response.data.products;
+        this.pagination.currentPage = response.data.currentPage;
+        this.pagination.totalPages = response.data.totalPages;
+        this.pagination.totalItems = response.data.totalItems;
         
       } catch (err: any) {
         console.error('Error fetching products:', err);
         this.error = 'Failed to load products';
       } finally {
         this.loading = false;
-        this.pagination.loadingNext = false;
       }
     },
     
