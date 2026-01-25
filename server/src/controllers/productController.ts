@@ -2,6 +2,12 @@ import { Request, Response } from 'express';
 import { db } from '../config/firebase';
 import { Product } from '../models/productModel';
 
+// --- IN-MEMORY CACHE FOR QUOTA SAFETY ---
+let productsCache: any[] | null = null;
+let lastCacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 Minutes
+// ---------------------------------------
+
 export const getProducts = async (req: Request, res: Response) => {
   try {
     const { 
@@ -12,15 +18,31 @@ export const getProducts = async (req: Request, res: Response) => {
       order = 'asc',
       minPrice,
       maxPrice,
-      cores,   // "4,6,8"
-      vram,    // "8,12,24"
-      ramSize  // "16,32"
+      cores,
+      vram,
+      ramSize,
+      forceRefresh
     } = req.query;
-    
-    // 1. Fetch ALL products (Safe for < 1000 items)
-    // We filter in memory to avoid complex Firestore composite index issues
-    const snapshot = await db.collection('products').get();
-    let items: Product[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+
+    let items: Product[] = [];
+
+    // 1. Cache Check
+    const isCacheValid = productsCache && (Date.now() - lastCacheTime < CACHE_TTL);
+    const shouldRefresh = forceRefresh === 'true' || !isCacheValid;
+
+    if (!shouldRefresh && productsCache) {
+       console.log('📦 Serving products from IN-MEMORY CACHE');
+       items = [...productsCache];
+    } else {
+       console.log('🔥 Fetching products from FIRESTORE (Writes to Cache)');
+       // Fetch ALL documents - Safe ONLY because we are caching!
+       const snapshot = await db.collection('products').get();
+       items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+
+       // Update Cache
+       productsCache = items;
+       lastCacheTime = Date.now();
+    }
 
     // 2. In-Memory Filtering
 
@@ -40,8 +62,6 @@ export const getProducts = async (req: Request, res: Response) => {
     }
 
     // Spec Filters
-    
-    // Cores (CPU)
     if (cores) {
       const coreOptions = String(cores).split(',').map(Number);
       items = items.filter(p => {
@@ -50,7 +70,6 @@ export const getProducts = async (req: Request, res: Response) => {
       });
     }
 
-    // VRAM (Video Card)
     if (vram) {
       const vramOptions = String(vram).split(',').map(Number);
       items = items.filter(p => {
@@ -59,12 +78,9 @@ export const getProducts = async (req: Request, res: Response) => {
       });
     }
 
-    // RAM Size (Memory)
     if (ramSize) {
       const ramOptions = String(ramSize).split(',').map(Number);
       items = items.filter(p => {
-        // RAM logic: modules is [count, size_per_module] usually
-        // p.specs.modules might be [2, 16] => 32GB total
         const mods = p.specs?.modules;
         if (Array.isArray(mods) && mods.length >= 2) {
             const total = mods[0] * mods[1];

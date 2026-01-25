@@ -29,11 +29,6 @@ const router = createRouter({
       component: () => import('../views/ProductDetailView.vue')
     },
     {
-      path: '/shop/:id',
-      name: 'product-details',
-      component: () => import('../views/ProductDetailView.vue')
-    },
-    {
       path: '/profile',
       name: 'profile',
       component: () => import('../views/ProfileView.vue'),
@@ -43,7 +38,7 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: () => import('../views/AdminDashboardView.vue'),
-      meta: { requiresAuth: true } // In real, requiresAdmin
+      meta: { requiresAuth: true, requiresAdmin: true }
     },
     {
       path: '/order-success/:id',
@@ -54,24 +49,45 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const { useAuthStore } = await import('@/stores/auth');
   const authStore = useAuthStore();
   
-  // Wait if loading? 
-  // Since App.vue handles the initial persistent load wait, 
-  // by the time we interact here usually loaded or loading.
-  // Ideally we might want to check authStore.loading here too
-  // but let's keep it simple: check user identity.
-  // Note: on a fresh reload, this guard might run before App's onMounted finishes initAuth
-  // But initAuth sets loading=true initially. 
-  // If we want STRICT protection, we should ensure auth is initialized.
-  
-  if (to.meta.requiresAuth && !authStore.user && !authStore.loading) {
-     next('/login');
-  } else {
-     next();
+  // Wait for Auth to Initialize if refreshing
+  if (authStore.loading) {
+     // A simple poll to wait for auth to settle (or could use a promise in store)
+     // For now, prompt the store to init if not already
+     // But usually App.vue handles this. The guard might run too fast.
+     // We will wait up to 2 seconds for loading to become false.
+     await new Promise<void>(resolve => {
+        const check = setInterval(() => {
+            if (!authStore.loading) {
+                clearInterval(check);
+                resolve();
+            }
+        }, 50);
+        setTimeout(() => { clearInterval(check); resolve(); }, 2000);
+     });
   }
+
+  // 1. Strict Auth Check
+  if (to.meta.requiresAuth && !authStore.user) {
+     return next('/login');
+  }
+
+  // 2. Strict Admin Check
+  if (to.meta.requiresAdmin) {
+      // Must be logged in (checked above, but double check)
+      if (!authStore.user) return next('/login');
+      
+      // Check Admin Email (or Claims in a real app)
+      const isAdmin = authStore.user.email === 'admin@tic.com' || authStore.firebaseUser?.email === 'admin@tic.com';
+      if (!isAdmin) {
+          return next('/'); // Not authorized -> Home
+      }
+  }
+
+  next();
 });
 
 export default router

@@ -8,6 +8,20 @@
           </v-toolbar>
           <v-card-text>
             <v-form @submit.prevent="handleLogin">
+              
+              <!-- Added Error Feedback -->
+              <v-alert
+                v-if="authStore.error"
+                type="error"
+                variant="tonal"
+                density="compact"
+                class="mb-4"
+                closable
+                @click:close="authStore.error = null"
+              >
+                {{ authStore.error }}
+              </v-alert>
+
               <v-text-field
                 v-model="email"
                 label="Email"
@@ -23,14 +37,14 @@
                 required
               ></v-text-field>
               
-              <v-alert v-if="error" type="error" density="compact" class="mb-4" closable >{{ error }}</v-alert>
-
-              <v-btn type="submit" color="primary" block class="mt-4">Login</v-btn>
+              <v-btn type="submit" color="primary" block class="mt-4" :loading="authStore.loading">
+                  Login
+              </v-btn>
             </v-form>
           </v-card-text>
           <v-divider></v-divider>
           <v-card-actions class="pa-4">
-             <v-btn block variant="outlined" color="secondary" @click="handleGoogle">
+             <v-btn block variant="outlined" color="secondary" @click="handleGoogle" :disabled="authStore.loading">
                <v-icon start>mdi-google</v-icon> Sign in with Google
              </v-btn>
           </v-card-actions>
@@ -52,29 +66,31 @@ import { useAuthStore } from '@/stores/auth';
 
 const email = ref('');
 const password = ref('');
-const error = ref('');
 const router = useRouter();
 const authStore = useAuthStore();
 
 const handleLogin = async () => {
+  // Store handles the 'loading' and 'error' state update
+  // Reset error before trying
+  authStore.error = null;
+  
   try {
-    error.value = '';
     await authStore.loginWithEmail(email.value, password.value);
+    // Only push if successful (actions throw on error usually)
     router.push('/');
   } catch (err: any) {
-    console.error(err);
-    error.value = "Login failed: " + (err.message || "Unknown error");
+    // Error is set in store, so the v-alert will show it
+    console.error("Login view caught error:", err);
   }
 };
 
 const handleGoogle = async () => {
+  authStore.error = null;
   try {
-    error.value = '';
     await authStore.loginWithGoogle();
     router.push('/');
   } catch (err: any) {
     console.error(err);
-    error.value = "Google Login failed: " + (err.message || "Unknown error");
   }
 };
 </script>

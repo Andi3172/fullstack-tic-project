@@ -1,0 +1,18 @@
+services:
+
+  backend:
+    build: ./server
+    container_name: tic-shop-backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./server/.env
+    restart: always
+
+  frontend:
+    build: ./client
+    container_name: tic-shop-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend

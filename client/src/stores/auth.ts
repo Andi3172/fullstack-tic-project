@@ -114,7 +114,7 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async register(email: string, password: string, firstName: string, lastName: string) {
+    async register(email: string, password: string, _firstName: string, _lastName: string) {
       try {
         this.loading = true;
         const result = await createUserWithEmailAndPassword(auth, email, password);
