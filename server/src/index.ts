@@ -10,14 +10,33 @@ import orderRoutes from './routes/orderRoutes';
 dotenv.config();
 
 const app = express();
+
 const PORT = process.env.PORT || 3000;
+const allowedOrigins = [
+  'http://localhost:5173', //local development
+  'http://localhost:8080', //local production
+  process.env.CLIENT_URL || '' // production
+];
 
 if (db) {
   console.log('Connected to Firestore');
 }
 
 app.use(helmet());
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if(allowedOrigins.includes(origin)){
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+ }));
+
+
 app.use(express.json());
 
 app.use('/api/users', userRoutes);
