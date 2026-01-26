@@ -4,6 +4,8 @@ import { auth, db } from '@/firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export interface Order {
   id: string;
 // ... existing interface ...
@@ -37,7 +39,9 @@ export const useOrderStore = defineStore('orders', {
         if (!user) throw new Error('User not authenticated');
         
         const token = await user.getIdToken();
-const API_URL = import.meta.env.VITE_API_URL;
+
+
+
         const response = await axios.get(`${API_URL}/api/orders/my-orders`, {
           headers: { Authorization: `Bearer ${token}` }
         });

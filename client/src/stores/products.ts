@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 export interface Product {
   id: string;
   name: string;
@@ -75,7 +77,7 @@ export const useProductStore = defineStore('products', {
         if (params.vram && params.vram.length > 0) queryParams.vram = params.vram.join(',');
         if (params.ramSize && params.ramSize.length > 0) queryParams.ramSize = params.ramSize.join(',');
         
-const API_URL = import.meta.env.VITE_API_URL;
+
         
         const response = await axios.get(`${API_URL}/api/products`, { params: queryParams });
         
