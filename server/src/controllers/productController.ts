@@ -5,7 +5,7 @@ import { Product } from '../models/productModel';
 // --- IN-MEMORY CACHE FOR QUOTA SAFETY ---
 let productsCache: any[] | null = null;
 let lastCacheTime = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 Minutes
+const CACHE_TTL = 60 * 20 * 1000; // 20 Minutes
 // ---------------------------------------
 
 export const getProducts = async (req: Request, res: Response) => {
@@ -31,10 +31,10 @@ export const getProducts = async (req: Request, res: Response) => {
     const shouldRefresh = forceRefresh === 'true' || !isCacheValid;
 
     if (!shouldRefresh && productsCache) {
-       console.log('📦 Serving products from IN-MEMORY CACHE');
+       console.log('Serving products from IN-MEMORY CACHE');
        items = [...productsCache];
     } else {
-       console.log('🔥 Fetching products from FIRESTORE (Writes to Cache)');
+       console.log('Fetching products from FIRESTORE (Writes to Cache)');
        // Fetch ALL documents - Safe ONLY because we are caching!
        const snapshot = await db.collection('products').get();
        items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
