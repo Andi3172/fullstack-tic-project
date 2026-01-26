@@ -71,7 +71,9 @@ export const useAuthStore = defineStore('auth', {
         // Use Fetch or Axios. 
         // Using fetch here to avoid circular dep issues if axios was configured with store, 
         // but simple axios call is fine too.
-        const response = await axios.post('http://localhost:3000/api/users', {}, {
+const API_URL = import.meta.env.VITE_API_URL;
+
+        const response = await axios.post(`${API_URL}/api/users`, {}, {
           headers: {
             'Authorization': `Bearer ${this.token}`
           }

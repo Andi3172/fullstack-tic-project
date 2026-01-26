@@ -37,7 +37,8 @@ export const useOrderStore = defineStore('orders', {
         if (!user) throw new Error('User not authenticated');
         
         const token = await user.getIdToken();
-        const response = await axios.get('http://localhost:3000/api/orders/my-orders', {
+const API_URL = import.meta.env.VITE_API_URL;
+        const response = await axios.get(`${API_URL}/api/orders/my-orders`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -58,7 +59,7 @@ export const useOrderStore = defineStore('orders', {
         if (!user) throw new Error('User not authenticated');
         const token = await user.getIdToken();
         
-        const response = await axios.get('http://localhost:3000/api/orders/admin/all', {
+        const response = await axios.get(`${API_URL}/api/orders/admin/all`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         this.allOrders = response.data;
@@ -97,12 +98,13 @@ export const useOrderStore = defineStore('orders', {
     },
 
     async updateStatus(orderId: string, status: string) {
+      const API_URL = import.meta.env.VITE_API_URL; // Define API_URL here for all actions
       try {
         const user = auth.currentUser;
         if (!user) throw new Error('User not authenticated');
         const token = await user.getIdToken();
 
-        await axios.patch(`http://localhost:3000/api/orders/${orderId}/status`, 
+        await axios.patch(`${API_URL}/api/orders/${orderId}/status`, 
           { status },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -121,7 +123,7 @@ export const useOrderStore = defineStore('orders', {
             if (!user) throw new Error('User not authenticated');
             const token = await user.getIdToken();
 
-            const response = await axios.get(`http://localhost:3000/api/orders/${orderId}/invoice`, {
+            const response = await axios.get(`${API_URL}/api/orders/${orderId}/invoice`, {
                 headers: { Authorization: `Bearer ${token}` },
                 responseType: 'blob'
             });

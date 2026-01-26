@@ -75,7 +75,9 @@ export const useProductStore = defineStore('products', {
         if (params.vram && params.vram.length > 0) queryParams.vram = params.vram.join(',');
         if (params.ramSize && params.ramSize.length > 0) queryParams.ramSize = params.ramSize.join(',');
         
-        const response = await axios.get('http://localhost:3000/api/products', { params: queryParams });
+const API_URL = import.meta.env.VITE_API_URL;
+        
+        const response = await axios.get(`${API_URL}/api/products`, { params: queryParams });
         
         this.products = response.data.products;
         this.pagination.currentPage = response.data.currentPage;
@@ -92,7 +94,7 @@ export const useProductStore = defineStore('products', {
     
     async fetchProductById(id: string) {
       try {
-        const response = await axios.get(`http://localhost:3000/api/products/${id}`);
+        const response = await axios.get(`${API_URL}/api/products/${id}`);
         return response.data;
       } catch (err: any) {
         console.error('Error fetching product:', err);

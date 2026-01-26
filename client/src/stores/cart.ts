@@ -120,7 +120,9 @@ export const useCartStore = defineStore('cart', () => {
         image: i.product.image
       }));
 
-      const response = await axios.post('http://localhost:3000/api/orders', 
+const API_URL = import.meta.env.VITE_API_URL;
+
+      const response = await axios.post(`${API_URL}/api/orders`, 
         { items: orderItems },
         { headers: { Authorization: `Bearer ${token}` } }
       );
